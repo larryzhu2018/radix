@@ -112,20 +112,27 @@ func ParseUint(b []byte) (uint64, error) {
 	return n, nil
 }
 
-// Expand expands the given byte slice to exactly n bytes.
+// Expand expands the given byte slice to exactly n bytes. It will not return
+// nil.
 //
-// If cap(b) < n, a new slice will be allocated and filled with the bytes from b.
-func Expand(b []byte, n int) []byte {
-	if cap(b) < n {
+// If cap(b) < n then a new slice will be allocated. If keepBytes is also true
+// then the new slice will be with the bytes from b.
+func Expand(b []byte, n int, keepBytes bool) []byte {
+	if n == 0 && b == nil {
+		b = []byte{} // so as to not return nil
+	} else if cap(b) < n {
 		nb := make([]byte, n)
-		copy(nb, b)
+		if keepBytes {
+			copy(nb, b)
+		}
 		return nb
 	}
 	return b[:n]
 }
 
-// BufferedBytesDelim reads a line from br and checks that the line ends with \r\n, returning the line without \r\n.
-func BufferedBytesDelim(br *bufio.Reader) ([]byte, error) {
+// ReadBytesDelim reads a line from br and checks that the line ends with
+// \r\n, returning the line without \r\n.
+func ReadBytesDelim(br *bufio.Reader) ([]byte, error) {
 	b, err := br.ReadSlice('\n')
 	if err != nil {
 		return nil, err
@@ -135,9 +142,10 @@ func BufferedBytesDelim(br *bufio.Reader) ([]byte, error) {
 	return b[:len(b)-2], err
 }
 
-// BufferedIntDelim reads the current line from br as an integer.
-func BufferedIntDelim(br *bufio.Reader) (int64, error) {
-	b, err := BufferedBytesDelim(br)
+// ReadIntDelim reads the current line from br as an integer, checks that the
+// line ends with \r\n, and returns the integer.
+func ReadIntDelim(br *bufio.Reader) (int64, error) {
+	b, err := ReadBytesDelim(br)
 	if err != nil {
 		return 0, err
 	}
@@ -150,7 +158,7 @@ func ReadNAppend(r io.Reader, b []byte, n int) ([]byte, error) {
 		return b, nil
 	}
 	m := len(b)
-	b = Expand(b, len(b)+n)
+	b = Expand(b, len(b)+n, true)
 	_, err := io.ReadFull(r, b[m:])
 	return b, err
 }
